@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebUntis offene Stundenzähler</title>
+
+<!-- Modern Styling -->
+<style>
+  body {
+    font-family: "Inter", Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+  }
+
+  .container {
+    background: #ffffff;
+    padding: 30px;
+    margin-top: 40px;
+    width: 95%;
+    max-width: 700px;
+    border-radius: 16px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 20px;
+    color: #2b2e4a;
+  }
+
+  /* Centered and nice upload box */
+  .upload-box {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  input[type="file"] {
+    width: 100%;
+    max-width: 350px;
+    padding: 14px;
+    border: 2px dashed #9da3b4;
+    border-radius: 10px;
+    background: #fafafa;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  input[type="file"]:hover {
+    background: #f0f0f0;
+  }
+
+  button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 15px;
+    background: #4a6cf7;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  button:hover {
+    background: #3b56c4;
+  }
+
+  button:disabled {
+    background: #bfc4d1;
+    cursor: not-allowed;
+  }
+
+  pre {
+    background: #f7f9fc;
+    padding: 20px;
+    border-radius: 10px;
+    white-space: pre-wrap;
+    border: 1px solid #dce2ee;
+    margin-top: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    font-size: 0.95rem;
+  }
+
+  .footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>📊 WebUntis Klassenbuch: Offene Stunden Zähler</h1>
+
+  <div class="upload-box">
+    <input type="file" id="pdfUpload" accept="application/pdf">
+  </div>
+
+  <button id="downloadCsv" disabled>⬇️ Download CSV</button>
+
+  <pre id="output">Bitte lade ein PDF hoch…</pre>
+
+  <div class="footer">schule-tools.de</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+
+const ignoreWords = new Set([
+  "Klasse", "Von", "Bis", "Lehrst", "Fach", "Lehrkraft", "Art",
+  "Raum", "Abw", "Datum", "Web", "Untis", "GmbH", "Seite", "Halle"
+]);
+
+const teacherPattern =
+  /\b[A-ZÄÖÜ][a-zäöüß]{2,}(?: ?\([A-Za-z]+\))?\b/g;
+
+let globalResult = [];
+
+document.getElementById("pdfUpload").addEventListener("change", async (event) => {
+  document.getElementById("output").textContent = "⏳ PDF wird analysiert…";
+
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const teacherCounter = {};
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const textContent = await page.getTextContent();
+    const text = textContent.items.map(item => item.str).join(" ");
+
+    const matches = text.match(teacherPattern);
+    if (matches) {
+      matches.forEach(match => {
+        if (!ignoreWords.has(match)) {
+          teacherCounter[match] = (teacherCounter[match] || 0) + 1;
+        }
+      });
+    }
+  }
+
+  const sortedTeachers = Object.entries(teacherCounter)
+    .sort((a, b) => b[1] - a[1]);
+
+  globalResult = sortedTeachers;
+
+  document.getElementById("downloadCsv").disabled =
+    sortedTeachers.length === 0;
+
+  const output = sortedTeachers
+    .map(([name, count]) => `${name}: ${count}`)
+    .join("\n");
+
+  document.getElementById("output").textContent =
+    output || "Keine Lehrkräfte gefunden.";
+});
+
+// CSV Export
+document.getElementById("downloadCsv").addEventListener("click", () => {
+  let csv = "Name,Stundenanzahl\n";
+  globalResult.forEach(([name, count]) => {
+    csv += `${name},${count}\n`;
+  });
+
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "anzahl_offene_stunden.csv";
+  a.click();
+
+  URL.revokeObjectURL(url);
+});
+</script>
+
+</body>
+</html>
