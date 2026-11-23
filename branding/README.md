@@ -29,10 +29,25 @@ Farben: Navy `#17233B`, Amber `#F2A93B`, Teal `#2F8F83`, Hellblau `#DCE6F2`.
 </a>
 ```
 
+Die Schriften (Inter, Space Grotesk; SIL Open Font License, siehe `fonts/OFL-*.txt`) liegen selbst gehostet in `fonts/` – es werden keine Google-Server angefragt.
+
 ## Auf den Server
 
-Den Ordner `branding/` nach `/var/www/schule-tools.de/html/branding/` kopieren, z. B.:
+| Repo | Server | Domain |
+|---|---|---|
+| `index.html` | `/var/www/schule-tools.de/html/index.html` | schule-tools.de |
+| `tools/index.html` | `/var/www/tools.schule-tools.de/html/index.html` | tools.schule-tools.de |
+| `Fehlzeiten-Rechner.html` | `/var/www/tools.schule-tools.de/html/fehlzeiten.html` | tools.schule-tools.de |
+| `klassenbuch.html` | `/var/www/tools.schule-tools.de/html/klassenbuch.html` | tools.schule-tools.de |
+| `branding/` | in **beide** Web-Roots als `branding/` | beide |
+
+`branding/` muss auf beiden Domains liegen, weil die Seiten per Content-Security-Policy nur Bilder und Schriften von der eigenen Domain laden.
 
 ```bash
-scp -r branding/ USER@schule-tools.de:/var/www/schule-tools.de/html/
+S=USER@schule-tools.de
+scp index.html $S:/var/www/schule-tools.de/html/
+scp -r branding $S:/var/www/schule-tools.de/html/
+scp tools/index.html klassenbuch.html $S:/var/www/tools.schule-tools.de/html/
+scp Fehlzeiten-Rechner.html $S:/var/www/tools.schule-tools.de/html/fehlzeiten.html
+scp -r branding $S:/var/www/tools.schule-tools.de/html/
 ```
